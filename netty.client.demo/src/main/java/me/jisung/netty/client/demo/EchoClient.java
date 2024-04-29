@@ -8,11 +8,15 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import jakarta.annotation.PostConstruct;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Component
 @Slf4j(topic = "EchoClient")
@@ -24,9 +28,26 @@ public class EchoClient {
     @Value("${netty.client.demo.port}")
     private int port;
 
+    private static final int THREAD_POOL_SIZE = 100;
+
     @PostConstruct
-    public void startClient() {
-        start();
+    public void startClient() throws InterruptedException {
+
+        ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+        CountDownLatch latch = new CountDownLatch(THREAD_POOL_SIZE);
+
+        for (int i = 0; i < THREAD_POOL_SIZE; i++) {
+            threadPool.execute(() -> {
+                try {
+                    start();
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+        threadPool.shutdown();
     }
 
     public void start() {
@@ -40,7 +61,7 @@ public class EchoClient {
                     .remoteAddress(new InetSocketAddress(host, port))
                     .handler(new ChannelInitializer<SocketChannel>() {
                         @Override
-                        protected void initChannel(SocketChannel socketChannel) {
+                        protected void initChannel(@NonNull SocketChannel socketChannel) {
                             socketChannel.pipeline().addLast(new EchoClientHandler());
                         }
                     });

@@ -10,6 +10,8 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Component
 @ChannelHandler.Sharable
 @Slf4j(topic = "EchoClientHandler")
@@ -21,17 +23,19 @@ public class EchoClientHandler extends SimpleChannelInboundHandler<ByteBuf> {
      * */
     @Override
     public void channelActive(@NonNull ChannelHandlerContext ctx) {
+        UUID uuid = UUID.randomUUID();
+
         // 채널 활성화 시 메시지를 서버로 전송
-        ctx.writeAndFlush(Unpooled.copiedBuffer("Netty rocks!", CharsetUtil.UTF_8));
+        ctx.writeAndFlush(Unpooled.copiedBuffer("[" + uuid + "] Netty rocks!", CharsetUtil.UTF_8));
     }
 
     /**
      * 서버로부터 message 수신 시 호출되는 method
-     * @param channelHandlerContext ChannelHandlerContext
+     * @param ctx ChannelHandlerContext
      * @param in ByteBuf
      * */
     @Override
-    protected void channelRead0(ChannelHandlerContext channelHandlerContext, ByteBuf in) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, ByteBuf in) {
         log.info("message received: {}", in.toString(CharsetUtil.UTF_8));
     }
 

@@ -1,14 +1,12 @@
 package me.jisung.netty.server.demo;
 
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.*;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.util.CharsetUtil;
 import jakarta.annotation.PostConstruct;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +15,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
-import java.nio.charset.Charset;
 
 @Component
 @RequiredArgsConstructor
@@ -31,44 +28,13 @@ public class EchoServer {
 
     @PostConstruct
     public void startServer() {
-        asynchronousServer();
-    }
-
-    public void asynchronousServer() {
-        EventLoopGroup loopGroup = new NioEventLoopGroup();
-        ServerBootstrap serverBootstrap = new ServerBootstrap();
-
-        ByteBuf buffer = Unpooled.copiedBuffer("message", CharsetUtil.UTF_8);
-        try {
-            serverBootstrap.group(loopGroup)
-                    .channel(NioServerSocketChannel.class)
-                    .localAddress(new InetSocketAddress(port))
-                    .childHandler(new ChannelInitializer<SocketChannel>() {
-                        @Override
-                        protected void initChannel(@NonNull SocketChannel socketChannel) throws Exception {
-                            socketChannel.pipeline().addLast(new ChannelInboundHandlerAdapter() {
-                                @Override
-                                public void channelActive(@NonNull ChannelHandlerContext ctx) throws Exception {
-                                    ctx.writeAndFlush(buffer.duplicate())
-                                            .addListener(ChannelFutureListener.CLOSE);
-                                }
-                            });
-                        }
-                    });
-
-            printServerStartLog("AsynchronousEchoServer started at port {}");
-
-            ChannelFuture future = serverBootstrap.bind().sync();
-            future.channel().closeFuture().sync();
-        } catch (InterruptedException e) {
-            log.error("InterruptedException: {}", e.getMessage());
-        } finally {
-            loopGroup.shutdownGracefully();
-        }
+        synchronousServer();
     }
 
     public void synchronousServer() {
-        EventLoopGroup loopGroup = new NioEventLoopGroup();
+        // 이벤트루프도 스레드에 1:1 대응하기 때문에 사용시 적절한 갯수를 설정해야한다. 아래는 Netty에서 정의한 기본값 설정부
+        // private static final int DEFAULT_EVENT_LOOP_THREADS = Math.max(1, SystemPropertyUtil.getInt("io.netty.eventLoopThreads", NettyRuntime.availableProcessors() * 2));
+        EventLoopGroup loopGroup = new NioEventLoopGroup(3);
         ServerBootstrap serverBootstrap = new ServerBootstrap();
 
         try {
@@ -83,7 +49,10 @@ public class EchoServer {
                         }
                     });
 
-            printServerStartLog("SynchronousEchoServer started at port {}");
+
+            log.info("=================================================================================");
+            log.info("SynchronousEchoServer started at port {}", port);
+            log.info("=================================================================================");
 
             // server를 비동기식으로 바인딩한다. sync()를 호출해 바인딩이 완료될 때까지 대기.
             ChannelFuture future = serverBootstrap.bind().sync();
@@ -95,11 +64,5 @@ public class EchoServer {
         } finally {
             loopGroup.shutdownGracefully();
         }
-    }
-
-    private void printServerStartLog(String message) {
-        log.info("=================================================================================");
-        log.info(message, port);
-        log.info("=================================================================================");
     }
 }
