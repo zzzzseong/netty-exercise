@@ -25,6 +25,7 @@ public class EchoServer {
     private int port;
 
     private final EchoServerHandler echoServerHandler;
+    private final EchoServerChannelActiveHandler echoServerChannelActiveHandler;
 
     @PostConstruct
     public void startServer() {
@@ -45,7 +46,10 @@ public class EchoServer {
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(@NonNull SocketChannel socketChannel) {
-                            socketChannel.pipeline().addLast(echoServerHandler);
+                            socketChannel.pipeline().addLast(
+                                    echoServerChannelActiveHandler,
+                                    echoServerHandler
+                            );
                         }
                     });
 
